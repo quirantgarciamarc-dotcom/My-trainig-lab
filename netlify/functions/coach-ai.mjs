@@ -1,3 +1,6 @@
+import { getUser } from '@netlify/identity';
+import { getDatabase } from '@netlify/database';
+
 const json = (body, status = 200, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders },
@@ -70,16 +73,10 @@ export default async (request) => {
   let authenticated = Boolean(suppliedToken && accessToken.length >= 24 && suppliedToken === accessToken);
   let requesterKey = authenticated ? 'shared-access-token' : '';
   let requesterUserId = '';
-  const supabaseUrl = (process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
-  const supabaseAnon = process.env.SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-  const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!authenticated && suppliedToken && supabaseUrl && supabaseAnon) {
-    try {
-      const verified = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: { apikey: supabaseAnon, authorization: `Bearer ${suppliedToken}` } });
-      const verifiedUser = verified.ok ? await verified.json().catch(() => null) : null;
-      authenticated = Boolean(verified.ok && verifiedUser?.id);
-      if (authenticated) { requesterUserId = String(verifiedUser.id); requesterKey = `user:${requesterUserId}`; }
-    } catch { authenticated = false; }
+  if (!authenticated) {
+    // Netlify Identity session (nf_jwt cookie sent automatically by the web app).
+    const identityUser = await getUser();
+    if (identityUser?.id) { authenticated = true; requesterUserId = identityUser.id; requesterKey = `user:${requesterUserId}`; }
   }
   if (!authenticated) return json({ error: 'Sesión no válida. Inicia sesión en My Training Lab o configura el código de acceso de la IA.' }, 401, corsHeaders);
 
@@ -97,16 +94,13 @@ export default async (request) => {
   const quotaKey = mode === 'import_pdf' ? 'pdf' : 'general';
   const quotaWindowSeconds = mode === 'import_pdf' ? 3600 : 60;
   const quotaMax = mode === 'import_pdf' ? 3 : 24;
-  if (requesterUserId && supabaseServiceRole && supabaseUrl) {
+  if (requesterUserId) {
     try {
-      const quotaResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_mtl_coach_quota`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', apikey: supabaseServiceRole, authorization: `Bearer ${supabaseServiceRole}` },
-        body: JSON.stringify({ p_user_id: requesterUserId, p_quota_key: quotaKey, p_window_seconds: quotaWindowSeconds, p_max_requests: quotaMax }),
-      });
-      if (!quotaResponse.ok) return json({ error: 'No se pudo comprobar el límite de uso de IA. Revisa la configuración privada de SUPABASE_SERVICE_ROLE_KEY y la función de cuota.' }, 503, corsHeaders);
-      const quotaAllowed = await quotaResponse.json().catch(() => false);
-      if (quotaAllowed !== true) return json({ error: mode === 'import_pdf' ? 'Has alcanzado el límite de 3 importaciones de PDF por hora. Inténtalo más tarde.' : 'Has enviado demasiadas peticiones al entrenador. Espera un minuto y vuelve a intentarlo.' }, 429, corsHeaders);
+      const sqlDb = getDatabase().sql;
+      await sqlDb`DELETE FROM coach_usage_log WHERE user_id = ${requesterUserId} AND created_at < now() - interval '1 day'`;
+      const [{ count }] = await sqlDb`SELECT count(*)::int AS count FROM coach_usage_log WHERE user_id = ${requesterUserId} AND quota_key = ${quotaKey} AND created_at > now() - make_interval(secs => ${quotaWindowSeconds})`;
+      if (count >= quotaMax) return json({ error: mode === 'import_pdf' ? 'Has alcanzado el límite de 3 importaciones de PDF por hora. Inténtalo más tarde.' : 'Has enviado demasiadas peticiones al entrenador. Espera un minuto y vuelve a intentarlo.' }, 429, corsHeaders);
+      await sqlDb`INSERT INTO coach_usage_log (user_id, quota_key) VALUES (${requesterUserId}, ${quotaKey})`;
     } catch { return json({ error: 'No se pudo comprobar el límite de uso de IA. Inténtalo de nuevo más tarde.' }, 503, corsHeaders); }
   } else if (!rateLimit(requesterKey || 'unknown-user', mode)) {
     return json({ error: mode === 'import_pdf' ? 'Has alcanzado el límite temporal de importaciones de PDF (3 por hora). Inténtalo más tarde.' : 'Has enviado demasiadas peticiones al entrenador en poco tiempo. Espera un minuto y vuelve a intentarlo.' }, 429, corsHeaders);
