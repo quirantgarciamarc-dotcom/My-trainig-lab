@@ -1,0 +1,61 @@
+name: Build and deploy web app to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Set GitHub Pages base path for this build
+        run: |
+          node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('app.json','utf8')); p.expo.experiments={...(p.expo.experiments||{}),baseUrl='/My-trainig-lab'}; fs.writeFileSync('app.json',JSON.stringify(p,null,2));"
+
+      - name: Export web app
+        run: npx expo export -p web
+
+      - name: Verify web output
+        run: test -f dist/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
