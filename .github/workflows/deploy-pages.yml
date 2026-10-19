@@ -28,11 +28,19 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Set GitHub Pages base path for this build
+      - name: Configure GitHub Pages base path
+        env:
+          EXPO_PUBLIC_BASE_URL: /My-trainig-lab
         run: |
-          node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('app.json','utf8')); p.expo.experiments={...(p.expo.experiments||{}),baseUrl='/My-trainig-lab'}; fs.writeFileSync('app.json',JSON.stringify(p,null,2));"
+          node -e "const fs=require('node:fs'); const p=JSON.parse(fs.readFileSync('app.json','utf8')); p.expo.experiments={...(p.expo.experiments||{}),baseUrl:process.env.EXPO_PUBLIC_BASE_URL}; fs.writeFileSync('app.json',JSON.stringify(p,null,2));"
+          node -e "const fs=require('node:fs'); const p='public/manifest.webmanifest'; const m=JSON.parse(fs.readFileSync(p,'utf8')); m.start_url='/My-trainig-lab/'; m.scope='/My-trainig-lab/'; m.icons=m.icons.map(i=>({...i,src:'/My-trainig-lab'+i.src})); fs.writeFileSync(p,JSON.stringify(m,null,2));"
 
       - name: Export web app
+        env:
+          EXPO_PUBLIC_BASE_URL: /My-trainig-lab
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_COACH_API_URL: ${{ secrets.EXPO_PUBLIC_COACH_API_URL }}
         run: npx expo export -p web
 
       - name: Verify web output
