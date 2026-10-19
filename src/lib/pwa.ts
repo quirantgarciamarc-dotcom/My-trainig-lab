@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
 export function setupPwaHead(): void {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
   const head = document.head;
-  const basePath = (process.env.EXPO_PUBLIC_BASE_URL ?? '').replace(/\\/$/, '');
+  const basePath = (process.env.EXPO_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
   const assetPath = (path: string) => `${basePath}${path}`;
   const ensure = (selector: string, create: () => HTMLElement) => {
     if (!head.querySelector(selector)) head.appendChild(create());
