@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "My Training Lab",
+    "slug": "my-training-lab-ios",
+    "version": "0.6.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "mytraininglab",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mytraininglab.personal",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "My Training Lab usa notificaciones para avisarte antes de los entrenamientos y al terminar los descansos.",
+        "NSPhotoLibraryUsageDescription": "My Training Lab utiliza la captura de Garmin Connect que selecciones para guardar tus datos de recuperaci\u00f3n."
+      }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "My Training Lab utiliza la captura que selecciones para guardar m\u00e9tricas de recuperaci\u00f3n.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-document-picker"
+    ],
+    "extra": {
+      "appStatus": "multiuser-onboarding-pdf-import-coach-chat",
+      "personalDataSource": "FICHA_PERSONAL_Y_DEPORTIVA_MY_TRAINING_LAB.docx"
+    },
+    "icon": "./assets/icon.png",
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icon.png",
+      "output": "single"
+    }
+  }
+}

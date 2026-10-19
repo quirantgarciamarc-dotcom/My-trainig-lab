@@ -1,0 +1,16 @@
+[build]
+  command = "npx expo export -p web"
+  publish = "dist"
+  functions = "netlify/functions"
+
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
