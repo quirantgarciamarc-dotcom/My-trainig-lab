@@ -8,6 +8,8 @@ import { Platform } from 'react-native';
 export function setupPwaHead(): void {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
   const head = document.head;
+  const basePath = (process.env.EXPO_PUBLIC_BASE_URL ?? '').replace(/\\/$/, '');
+  const assetPath = (path: string) => `${basePath}${path}`;
   const ensure = (selector: string, create: () => HTMLElement) => {
     if (!head.querySelector(selector)) head.appendChild(create());
   };
@@ -23,8 +25,8 @@ export function setupPwaHead(): void {
     return el;
   };
   try {
-    ensure('link[rel="manifest"]', () => link('manifest', '/manifest.webmanifest'));
-    ensure('link[rel="apple-touch-icon"]', () => link('apple-touch-icon', '/icons/apple-touch-icon.png'));
+    ensure('link[rel="manifest"]', () => link('manifest', assetPath('/manifest.webmanifest')));
+    ensure('link[rel="apple-touch-icon"]', () => link('apple-touch-icon', assetPath('/icons/apple-touch-icon.png')));
     ensure('meta[name="theme-color"]', () => meta('theme-color', '#080B10'));
     ensure('meta[name="apple-mobile-web-app-capable"]', () => meta('apple-mobile-web-app-capable', 'yes'));
     ensure('meta[name="mobile-web-app-capable"]', () => meta('mobile-web-app-capable', 'yes'));
